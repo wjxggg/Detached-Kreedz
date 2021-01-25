@@ -19,17 +19,18 @@ public class PlayerMove1 : MonoBehaviour
         Slide,
         AirSlide,
         Fly,
+        Grap,
     }
     public PlayerState state = PlayerState.Idle;
     public GameObject playerCamera;//获得玩家摄像机
     public float sensitivityMouse = 1f;//鼠标速度
     public bool isGrounded = false;//判断是否在地上
-    public bool checkIsGrouned = true;//用于控制跳跃后一小段时间不检测地面
-    public float GTimer = 0.3f;//上面的Timer
-    public bool isHoldingSpace = false;//判断是否按了空格
-    public float maxHoldingSpaceTIme = 0.2f;//空格持续时间
+    private bool checkIsGrounded = true;//用于控制跳跃后一小段时间不检测地面
+    private float GTimer = 0.3f;//上面的Timer
+    private bool isHoldingSpace = false;//判断是否按了空格
+    private float maxHoldingSpaceTIme = 0.2f;//空格持续时间
     private float holdingSpaceTimer = 0;//空格Timer
-    public float maxSlidingTime = 0.7f;//滑铲不失速持续时间
+    private float maxSlidingTime = 0.7f;//滑铲不失速持续时间
     private float slidingTimer = 0;//滑铲Timer
     public float slideAddPower = 8;//滑铲加速度
     public float duckSpeed = 4;//蹲下速度
@@ -49,6 +50,7 @@ public class PlayerMove1 : MonoBehaviour
 
     void Start()
     {
+        Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
         rig = GetComponent<Rigidbody>();
         groundLayer = 1 << LayerMask.NameToLayer("Ground");
@@ -81,13 +83,13 @@ public class PlayerMove1 : MonoBehaviour
     void CheckIsGrounded()
     {
         //如果checkIsGrouned
-        if (checkIsGrouned)
+        if (checkIsGrounded)
         {
             var pointBottom = transform.position + new Vector3(0, 0.25f, 0);
             var pointTop = transform.position + new Vector3(0, 0.4f, 0);
             //创建一个碰撞箱，检测下方是否碰到Ground层，实现地面检测
             Collider[] collider = Physics.OverlapCapsule(pointBottom, pointTop, radius * 0.9f, groundLayer.value);
-            if (collider.Length != 0)
+            if (collider.Length != 0 && state != PlayerState.Grap)
             {
                 isGrounded = true;
             }
@@ -95,7 +97,7 @@ public class PlayerMove1 : MonoBehaviour
             {
                 isGrounded = false;
                 //设置state
-                if (state != PlayerState.AirSlide) state = PlayerState.Fly;
+                if (state != PlayerState.AirSlide && state != PlayerState.Grap) state = PlayerState.Fly;
             }
         }
         //否则
@@ -113,7 +115,7 @@ public class PlayerMove1 : MonoBehaviour
             if (GTimer < 0)
             {
                 GTimer = 0.3f;
-                checkIsGrouned = true;
+                checkIsGrounded = true;
             }
         }
     }
@@ -133,7 +135,7 @@ public class PlayerMove1 : MonoBehaviour
             }
             else
             {
-                state = state == PlayerState.Slide ? PlayerState.Slide : PlayerState.Idle;
+                state = state == PlayerState.Duck ? PlayerState.Idle : state;
             }
         }
     }
@@ -142,7 +144,7 @@ public class PlayerMove1 : MonoBehaviour
     void Move()
     {
         //地上移动
-        if (isGrounded && state != PlayerState.Duck && state != PlayerState.Slide && state != PlayerState.AirSlide)
+        if (isGrounded && state != PlayerState.Duck && state != PlayerState.Slide && state != PlayerState.AirSlide && state != PlayerState.Grap)
         {
             rig.velocity = transform.TransformVector(h * Speed, rig.velocity.y, v * Speed);
             //设置state
@@ -190,7 +192,7 @@ public class PlayerMove1 : MonoBehaviour
             if (transform.InverseTransformVector(rig.velocity).z < 5)
             {
                 //增加airSpeed * (difBtAngles 与 2的最小值)
-                rig.AddRelativeForce(0, 0, airSpeed);
+                rig.AddRelativeForce(0, 0, airSpeed * 2);
             }
         }
     }
@@ -231,7 +233,7 @@ public class PlayerMove1 : MonoBehaviour
             isHoldingSpace = false;
             isGrounded = false;
             //起跳后一段时间不检测地面的设置
-            checkIsGrouned = false;
+            checkIsGrounded = false;
         }
     }
 
@@ -316,8 +318,6 @@ public class PlayerMove1 : MonoBehaviour
             //碰撞箱设置
             collider1.height = 0.6f;
             collider1.center = Vector3.up * collider1.height / 2;
-            //X轴速度设为0
-            rig.velocity = transform.TransformVector(0, rig.velocity.y, transform.InverseTransformVector(rig.velocity).z);
         }
         //判断滑铲状态
         else if (state == PlayerState.Slide)
